@@ -2,9 +2,10 @@
 
 __plugin_meta__ = {
     'name': '命令桥接',
-    'author': 'ElainaBot',
+    'author': 'MUJ1024',
     'description': '将带有 ! 前缀的消息写入队列，供 Claude Code 处理',
     'version': '1.0.0',
+    'github': 'https://github.com/MUJ1024/Elainabot-command-bridge',
 }
 
 from core.plugin.decorators import on_load, on_unload
