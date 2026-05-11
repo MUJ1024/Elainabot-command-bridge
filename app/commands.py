@@ -83,10 +83,11 @@ async def list_pending(event, match):
     if not pending:
         await event.reply('📭 没有待处理的任务')
         return
-    lines = ['', '## ⏳ 待处理投递', '', '---', '', _table(pending), '']
+    lines = ['', '## ⏳ 待处理投递', '', '---', '', _table(pending), '',
+             '> 点击下方按钮后输入序号', '']
     btns = [
-        [{'text': '🗑️ 删除', 'data': 'tdsc ', 'enter': True},
-         {'text': '✏️ 编辑', 'data': 'tdbj ', 'enter': True},
+        [{'text': '🗑️ 删除', 'data': 'tdsc ', 'enter': False},
+         {'text': '✏️ 编辑', 'data': 'tdbj ', 'enter': False},
          {'text': '📋 全部', 'data': '我的投递', 'enter': True}],
     ]
     await event.reply('\n'.join(lines), buttons=btns, use_markdown=True)
