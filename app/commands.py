@@ -1,4 +1,4 @@
-"""命令桥接 — 统一任务管理，所有投递放在一个文件中"""
+"""命令桥接 — 统一任务管理"""
 
 import os
 import json
@@ -18,8 +18,7 @@ _TASKS_FILE = os.path.join(_DATA_DIR, 'tasks.json')
 _SIGNAL_FILE = os.path.join(_DATA_DIR, 'p')
 
 
-def _load_tasks():
-    """读取所有任务"""
+def _load():
     if not os.path.exists(_TASKS_FILE):
         return []
     try:
@@ -29,95 +28,108 @@ def _load_tasks():
         return []
 
 
-def _save_tasks(tasks):
-    """保存任务列表"""
+def _save(tasks):
     os.makedirs(_DATA_DIR, exist_ok=True)
     with open(_TASKS_FILE, 'w', encoding='utf-8') as f:
         json.dump(tasks, f, ensure_ascii=False, indent=2)
 
 
 def _signal():
-    """写信号文件通知 Claude Code"""
     os.makedirs(_DATA_DIR, exist_ok=True)
     with open(_SIGNAL_FILE, 'w') as f:
         f.write('1')
 
 
-def _add_task(user_id, text):
-    """添加任务"""
-    tasks = _load_tasks()
+def _add(user_id, text):
+    tasks = _load()
     tid = (tasks[-1]['id'] + 1) if tasks else 1
-    tasks.append({
-        'id': tid,
-        'user_id': user_id,
-        'text': text,
-        'time': datetime.now().strftime('%m-%d %H:%M'),
-        'status': 'pending',
-    })
-    _save_tasks(tasks)
+    tasks.append({'id': tid, 'user_id': user_id, 'text': text,
+                  'time': datetime.now().strftime('%m-%d %H:%M'), 'status': 'pending'})
+    _save(tasks)
     _signal()
     return tid
 
 
-# ==================== 投递指令 ====================
+def _table(tasks, show_id=True):
+    """生成 markdown 表格"""
+    if not tasks:
+        return '（无）'
+    rows = ['| # | 时间 | 内容 |', '|---|------|------|']
+    for t in reversed(tasks):  # 最新在上
+        sid = f'`#{t["id"]}`' if show_id else ''
+        icon = '⏳' if t['status'] == 'pending' else '✅'
+        text = t['text'][:45] + ('...' if len(t['text']) > 45 else '')
+        rows.append(f'| {sid} {icon} | {t["time"]} | {text} |')
+    return '\n'.join(rows)
 
-@handler(r'^[！!](.+)$', name='桥接', desc='投递任务给Claude Code',
-         owner_only=True, priority=0)
+
+# ==================== 投递 ====================
+
+@handler(r'^[！!](.+)$', name='桥接', desc='投递任务', owner_only=True, priority=0)
 async def bridge_task(event, match):
-    """所有带 ! 的消息都作为任务投递"""
     cmd = match.group(1).strip()
     if not cmd:
         return
-    tid = _add_task(event.user_id, cmd)
-    await event.reply(f'📨 #{tid} 已投递 → 等待处理: `{cmd}`')
-    log.info(f'任务 #{tid} 入队: {cmd}')
+    tid = _add(event.user_id, cmd)
+    await event.reply(f'📨 #{tid} 已投递 → `{cmd}`')
 
 
-@handler(r'^[！!]?(tdck|投递查看|投递列表)$', name='投递查看', desc='查看所有已投递的任务',
+@handler(r'^[！!]?(tdck|投递查看|投递列表)$', name='投递查看', desc='查看待处理的任务',
          owner_only=True, priority=1)
-async def list_tasks(event, match):
-    tasks = _load_tasks()
-    if not tasks:
-        await event.reply('📭 暂无投递任务')
+async def list_pending(event, match):
+    """只显示待处理的任务"""
+    tasks = _load()
+    pending = [t for t in tasks if t['status'] == 'pending']
+    if not pending:
+        await event.reply('📭 没有待处理的任务')
         return
-
-    lines = ['', '## 📋 投递列表', '', '---', '']
-    for t in tasks:
-        sid = str(t['id']).rjust(3)
-        status_icon = '⏳' if t['status'] == 'pending' else '✅' if t['status'] == 'done' else '❌'
-        text = t['text'][:50] + ('...' if len(t['text']) > 50 else '')
-        lines.append(f'> `#{sid}` {status_icon} {t["time"]} {text}')
-    lines.extend(['', '---', '', '> 投递删除 <序号> 或 tdsc <序号>'])
+    lines = ['', '## ⏳ 待处理投递', '', '---', '', _table(pending),
+             '', '---', '', '> `投递删除 <序号>` 或 `我的投递` 查看全部']
     await event.reply('\n'.join(lines), use_markdown=True)
 
 
-@handler(r'^[！!]?(tdsc|投递删除)\s*(\d+)$', name='投递删除', desc='删除某个投递任务',
+@handler(r'^[！!]?(我的投递|tdall)$', name='我的投递', desc='查看所有投递记录（含已处理）',
+         owner_only=True, priority=1)
+async def list_all(event, match):
+    tasks = _load()
+    if not tasks:
+        await event.reply('📭 暂无投递记录')
+        return
+    lines = ['', '## 📋 全部投递', '', '---', '', _table(tasks),
+             '', '---', '', '> `tdck` 只看待处理']
+    await event.reply('\n'.join(lines), use_markdown=True)
+
+
+@handler(r'^[！!]?(tdsc|投递删除)\s*(\d+)$', name='投递删除', desc='删除任务',
          owner_only=True, priority=1)
 async def delete_task(event, match):
     tid = int(match.group(2))
-    tasks = _load_tasks()
+    tasks = _load()
     before = len(tasks)
     tasks = [t for t in tasks if t['id'] != tid]
     if len(tasks) == before:
         await event.reply(f'❌ 未找到 #{tid}')
         return
-    _save_tasks(tasks)
+    _save(tasks)
     _signal()
     await event.reply(f'🗑️ #{tid} 已删除')
 
 
-@handler(r'^[！!]?(tdbj|投递编辑)\s*(\d+)\s+(.+)$', name='投递编辑', desc='编辑某个投递任务',
+@handler(r'^[！!]?(tdbj|投递编辑)\s*(\d+)\s*(.+)$', name='投递编辑', desc='编辑任务内容',
          owner_only=True, priority=1)
 async def edit_task(event, match):
     tid = int(match.group(2))
     new_text = match.group(3).strip()
-    tasks = _load_tasks()
+    if not new_text:
+        await event.reply(f'❌ 内容不能为空')
+        return
+    tasks = _load()
     for t in tasks:
         if t['id'] == tid:
             t['text'] = new_text
             t['status'] = 'pending'
-            _save_tasks(tasks)
+            _save(tasks)
             _signal()
-            await event.reply(f'✏️ #{tid} 已更新: `{new_text}`')
+            await event.reply(f'✏️ #{tid} 已更新')
             return
     await event.reply(f'❌ 未找到 #{tid}')
