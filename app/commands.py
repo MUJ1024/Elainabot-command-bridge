@@ -50,16 +50,16 @@ def _add(user_id, text):
     return tid
 
 
-def _table(tasks, show_id=True):
-    """生成 markdown 表格"""
+def _table(tasks):
+    """生成 markdown 表格，序号从1递增"""
     if not tasks:
         return '（无）'
     rows = ['| # | 时间 | 内容 |', '|---|------|------|']
-    for t in reversed(tasks):  # 最新在上
-        sid = f'`#{t["id"]}`' if show_id else ''
+    reverse = list(reversed(tasks))
+    for i, t in enumerate(reverse, 1):
         icon = '⏳' if t['status'] == 'pending' else '✅'
         text = t['text'][:45] + ('...' if len(t['text']) > 45 else '')
-        rows.append(f'| {sid} {icon} | {t["time"]} | {text} |')
+        rows.append(f'| {i} {icon} | {t["time"]} | {text} |')
     return '\n'.join(rows)
 
 
@@ -83,9 +83,9 @@ async def list_pending(event, match):
     if not pending:
         await event.reply('📭 没有待处理的任务')
         return
-    lines = ['', '## ⏳ 待处理投递', '', '---', '', _table(pending),
-             '', '---', '', '> `投递删除 <序号>` 或 `我的投递` 查看全部']
-    await event.reply('\n'.join(lines), use_markdown=True)
+    lines = ['', '## ⏳ 待处理投递', '', '---', '', _table(pending), '']
+    btns = [{'text': '📋 我的投递', 'data': '我的投递', 'enter': True}]
+    await event.reply('\n'.join(lines), buttons=[btns], use_markdown=True)
 
 
 @handler(r'^[！!]?(我的投递|tdall)$', name='我的投递', desc='查看所有投递记录（含已处理）',
@@ -95,9 +95,9 @@ async def list_all(event, match):
     if not tasks:
         await event.reply('📭 暂无投递记录')
         return
-    lines = ['', '## 📋 全部投递', '', '---', '', _table(tasks),
-             '', '---', '', '> `tdck` 只看待处理']
-    await event.reply('\n'.join(lines), use_markdown=True)
+    lines = ['', '## 📋 全部投递', '', '---', '', _table(tasks), '']
+    btns = [{'text': '⏳ 待处理', 'data': 'tdck', 'enter': True}]
+    await event.reply('\n'.join(lines), buttons=[btns], use_markdown=True)
 
 
 @handler(r'^[！!]?(tdsc|投递删除)\s*(\d+)$', name='投递删除', desc='删除任务',
