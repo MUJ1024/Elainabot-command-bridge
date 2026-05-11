@@ -84,8 +84,12 @@ async def list_pending(event, match):
         await event.reply('📭 没有待处理的任务')
         return
     lines = ['', '## ⏳ 待处理投递', '', '---', '', _table(pending), '']
-    btns = [{'text': '📋 我的投递', 'data': '我的投递', 'enter': True}]
-    await event.reply('\n'.join(lines), buttons=[btns], use_markdown=True)
+    btns = [
+        [{'text': '🗑️ 删除', 'data': 'tdsc ', 'enter': True},
+         {'text': '✏️ 编辑', 'data': 'tdbj ', 'enter': True},
+         {'text': '📋 全部', 'data': '我的投递', 'enter': True}],
+    ]
+    await event.reply('\n'.join(lines), buttons=btns, use_markdown=True)
 
 
 @handler(r'^[！!]?(我的投递|tdall)$', name='我的投递', desc='查看所有投递记录（含已处理）',
