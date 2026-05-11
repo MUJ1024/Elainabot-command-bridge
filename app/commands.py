@@ -122,26 +122,3 @@ async def delete_task(event, match):
     _signal()
     await event.reply(f'🗑️ 第 {pos} 条已删除')
 
-
-@handler(r'^[！!]?(tdbj|投递编辑)\s*(\d+)\s*(.+)$', name='投递编辑', desc='按表格序号编辑任务',
-         owner_only=True, priority=1)
-async def edit_task(event, match):
-    pos = int(match.group(2))
-    new_text = match.group(3).strip()
-    if not new_text:
-        await event.reply('❌ 内容不能为空')
-        return
-    tasks = _load()
-    rev, total = _reverse_pending(tasks)
-    if pos < 1 or pos > len(rev):
-        await event.reply(f'❌ 序号 {pos} 超出范围（当前 {len(rev)} 条待处理）')
-        return
-    target_id = rev[pos - 1]['id']
-    for t in tasks:
-        if t['id'] == target_id:
-            t['text'] = new_text
-            t['status'] = 'pending'
-            _save(tasks)
-            _signal()
-            await event.reply(f'✏️ 第 {pos} 条已更新')
-            return

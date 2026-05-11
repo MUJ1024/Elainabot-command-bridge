@@ -8,7 +8,7 @@
 
 - 仅限 **Claude Code 终端** 中使用
 - 需要以 `claude --dangerously-skip-permissions` 启动（否则无法自动执行 Bash 命令和 Web API 调用）
-- Windows 用户可直接运行项目根目录的 `启动Claude Code.bat`
+- Windows 用户可自行创建启动脚本 `claude --dangerously-skip-permissions`
 
 ## 工作流程
 
@@ -54,7 +54,6 @@ bots:
 | `tdck` / `投递查看` / `投递列表` | 查看待处理 |
 | `我的投递` / `tdall` | 查看全部（含已处理） |
 | `tdsc <n>` | 按序号删除 |
-| `tdbj <n> <内容>` | 按序号编辑 |
 
 ## 文件
 
