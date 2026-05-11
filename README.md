@@ -2,118 +2,80 @@
 
 > 项目地址：https://github.com/MUJ1024/Elainabot-command-bridge
 
-将 QQ 上带 `！` 前缀的消息写入固定信号文件，供 Claude Code 定时读取和处理。处理完成后通过 Web API 将结果回复到 QQ。
+将 QQ 上带 `！` 前缀的消息写入信号文件，供 Claude Code 每 10 分钟检查处理。处理后通过 Web API 回复到 QQ。
+
+## 运行环境
+
+- 仅限 **Claude Code 终端** 中使用
+- 需要以 `claude --dangerously-skip-permissions` 启动（否则无法自动执行 Bash 命令和 Web API 调用）
+- Windows 用户可直接运行项目根目录的 `启动Claude Code.bat`
 
 ## 工作流程
 
 ```
 你发 ！<指令>
-  → Bot 插件写入 data/command_queue/p（信号文件）
-  → Claude Code 每 10 分钟检查该文件是否存在
-  → 存在则读取 data/command_queue/tasks.json 中所有待处理任务
-  → 处理后标记为 done，删除信号文件
+  → Bot 插件写入 data/p（信号文件）和 data/command_queue/tasks.json（任务列表）
+  → Claude Code 每 10 分钟检查 data/p 是否存在
+  → 存在则读取 tasks.json 中所有待处理任务
+  → 处理后标记为 done，删除 data/p
   → 通过 Web API 回复结果到 QQ
 ```
 
 ## 安装
 
-1. 将 `command_bridge/` 整个目录放到 `plugins/` 下
-2. 框架自动热加载（~2秒）或手动在 Web 面板重载插件
-3. 在 QQ 上发送 `！测试` 验证是否生效（bot 回复"已投递"即成功）
+1. 将 `command_bridge/` 放到 `plugins/` 下
+2. 框架自动热加载或手动重载
+3. 发送 `！测试` 验证（回复"已投递"即成功）
 
 ## 配置
 
-### 授权用户
-
-指令仅限 `config/bot.yaml` 中配置的 `owner_ids` 使用：
+指令仅限 `config/bot.yaml` 中 `owner_ids` 内的用户使用：
 
 ```yaml
 bots:
-  - appid: "你的机器人appid"
+  - appid: "你的appid"
     owner_ids:
-      - "<你的 openid>"
+      - "<你的openid>"
 ```
 
-### Claude Code 轮询
-
-在 Claude Code 对话中设置轮询：
+## 轮询
 
 ```
 /loop 10m "检p"
 ```
 
-取消轮询：
-
-```
-/cron_delete <job_id>
-```
-
-查看所有定时任务：
-
-```
-/cron_list
-```
-
-> 可通过 `/cron_delete` 取消后重新设置间隔。
-
-## 信号文件
-
-| 文件 | 说明 |
-|------|------|
-| `data/command_queue/p` | 信号文件，存在即有任务待处理 |
-| `data/command_queue/tasks.json` | 任务列表，所有投递统一存储 |
-
-信号文件内容仅一个 `1`，任务详情全部在 `tasks.json` 中。
+取消：`/cron_delete <job_id>` ｜ 查看：`/cron_list`
 
 ## 指令
 
 | 指令 | 功能 |
 |------|------|
-| `！<内容>` 或 `！<内容>` | 投递新任务 |
-| `tdck` / `投递查看` / `投递列表` | 查看待处理任务 |
-| `我的投递` / `tdall` | 查看全部投递（含已处理） |
-| `tdsc <n>` / `投递删除 <n>` | 删除某个任务 |
-| `tdbj <n> <内容>` / `投递编辑 <n> <内容>` | 编辑某个任务 |
+| `！<内容>` | 投递新任务 |
+| `tdck` / `投递查看` / `投递列表` | 查看待处理 |
+| `我的投递` / `tdall` | 查看全部（含已处理） |
+| `tdsc <n>` | 按序号删除 |
+| `tdbj <n> <内容>` | 按序号编辑 |
 
-## Token 消耗
+## 文件
 
-测试模型：`deepseek-v4-flash`
+| 文件 | 说明 |
+|------|------|
+| `data/p` | 信号文件（1字节） |
+| `data/command_queue/tasks.json` | 任务列表 |
 
-| 场景 | 每次 Token | 说明 |
-|------|-----------|------|
-| 空检测（无任务） | ~98 | 信号文件不存在，直接跳过 |
-| 处理 1 条任务 | ~150-200 | 读取 + 标记 + 回复 |
-| 处理多条任务 | ~200-300 | 批量处理 |
+## 隐私
 
-### 每日预估
-
-| 轮询间隔 | 每天检测 | 每日空检测 Token |
-|----------|---------|-----------------|
-| 1 分钟 | 1440 次 | ~138,000 |
-| 2 分钟 | 720 次 | ~69,000 |
-| 5 分钟 | 288 次 | ~27,600 |
-| 10 分钟（推荐） | 144 次 | ~14,112 |
-| 5 分钟 + 9-23 时 | 168 次 | ~16,100 |
-
-> 默认推荐 10 分钟间隔，兼顾响应速度与 Token 消耗。
-> 实际消耗会因系统提醒、上下文长度等因素略有波动。
-
-## 隐私说明
-
-- 用户 ID 仅存储在 `config/bot.yaml` 的 `owner_ids` 中
-- 运行时用户 ID 暂存于 `tasks.json`，处理完毕保留为记录
-- 不记录日志到外部服务
+- 用户 ID 仅存于 `config/bot.yaml` 和 `tasks.json`
 - 不收集任何统计信息
-- 信号文件不存在时轮询不做任何操作
 
 ## 文件结构
 
 ```
 plugins/command_bridge/
-├── README.md          # 本说明文件
+├── README.md
 ├── __init__.py
-├── main.py            # 插件入口（含 __plugin_meta__）
+├── main.py
 └── app/
     ├── __init__.py
-    └── commands.py     # 核心逻辑：写入队列 + 任务管理
+    └── commands.py
 ```
