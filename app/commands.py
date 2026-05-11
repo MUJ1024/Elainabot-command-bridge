@@ -15,7 +15,7 @@ for _ in range(3):
 
 _DATA_DIR = os.path.join(_ROOT, 'data', 'command_queue')
 _TASKS_FILE = os.path.join(_DATA_DIR, 'tasks.json')
-_SIGNAL_FILE = os.path.join(_DATA_DIR, 'pending.json')
+_SIGNAL_FILE = os.path.join(_DATA_DIR, 'p')
 
 
 def _load_tasks():
