@@ -87,7 +87,6 @@ async def list_pending(event, match):
              '> 点击下方按钮后输入序号', '']
     btns = [
         [{'text': '🗑️ 删除', 'data': 'tdsc ', 'enter': False},
-         {'text': '✏️ 编辑', 'data': 'tdbj ', 'enter': False},
          {'text': '📋 全部', 'data': '我的投递', 'enter': True}],
     ]
     await event.reply('\n'.join(lines), buttons=btns, use_markdown=True)
